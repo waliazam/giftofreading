@@ -139,7 +139,7 @@ const AdminDashboard = () => {
           </button>
         </div>
         <div className="admin-hero-illustration">
-          <img src="/images/hero.png" alt="Hero Illustration" />
+          {/* <img src="/images/booksgift.png" alt="Hero Illustration" /> */}
         </div>
         <div className="campaign-progress-card">
           <h4>Campaign Progress</h4>

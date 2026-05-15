@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authAPI, booksAPI } from '../utils/api';
 import { clearUserSession, getStoredUser, saveUserSession } from '../utils/session';
+import PhotoFrame from './PhotoFrame';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -16,6 +17,11 @@ const Dashboard = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showFrame, setShowFrame] = useState(false);
+  const [frameMode, setFrameMode] = useState('edit');
+  const [framePhoto, setFramePhoto] = useState(null);
+  const [frameName, setFrameName] = useState('');
+  const [frameLocation, setFrameLocation] = useState('');
 
   useEffect(() => {
     const storedUser = getStoredUser();
@@ -111,6 +117,109 @@ const Dashboard = () => {
     navigate('/');
   };
 
+  const loadSavedFrameData = () => {
+    try {
+      const saved = localStorage.getItem('giftOfReadingFrame');
+      if (!saved) return null;
+      return JSON.parse(saved);
+    } catch (err) {
+      console.error('Failed to load saved frame data', err);
+      return null;
+    }
+  };
+
+  const saveFrameData = (data) => {
+    try {
+      const sanitized = {
+        name: data.name,
+        location: data.location,
+        photo: data.photo
+      };
+      localStorage.setItem('giftOfReadingFrame', JSON.stringify(sanitized));
+    } catch (err) {
+      console.error('Failed to save frame data', err);
+    }
+  };
+
+  useEffect(() => {
+    if (!user) return;
+    const saved = loadSavedFrameData();
+    if (saved) {
+      setFrameName(saved.name || `${user.firstName} ${user.lastName}`);
+      setFrameLocation(saved.location || `${user.location} • ${user.region}`);
+      setFramePhoto(saved.photo || null);
+    } else {
+      setFrameName(`${user.firstName} ${user.lastName}`);
+      setFrameLocation(`${user.location} • ${user.region}`);
+    }
+  }, [user]);
+
+  const openFramePanel = (mode) => {
+    setFrameMode(mode);
+    setShowFrame(true);
+  };
+
+  const handleEditPledge = () => {
+    openFramePanel('edit');
+  };
+
+  const handleSharePledge = () => {
+    openFramePanel('share');
+  };
+
+  const handlePhotoUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const photoDataUrl = reader.result;
+        setFramePhoto(photoDataUrl);
+        saveFrameData({ name: frameName || `${user.firstName} ${user.lastName}`, location: frameLocation || `${user.location} • ${user.region}`, photo: photoDataUrl });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleFrameFieldChange = (field, value) => {
+    if (field === 'name') {
+      setFrameName(value);
+      saveFrameData({ name: value, location: frameLocation, photo: framePhoto });
+    } else if (field === 'location') {
+      setFrameLocation(value);
+      saveFrameData({ name: frameName, location: value, photo: framePhoto });
+    }
+  };
+
+  const closeFrameModal = () => {
+    setShowFrame(false);
+  };
+
+  const handleCopyShareLink = async () => {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/dashboard`);
+      alert('Dashboard link copied to clipboard.');
+    } catch (err) {
+      console.error('Copy failed', err);
+      alert('Unable to copy link.');
+    }
+  };
+
+  const handleShareWeb = async () => {
+    if (!navigator.share) return;
+
+    const shareData = {
+      title: 'My Reading Pledge',
+      text: `Check out my reading pledge from ${frameName} (${frameLocation}).`,
+      url: window.location.origin + '/dashboard'
+    };
+
+    try {
+      await navigator.share(shareData);
+    } catch (err) {
+      console.error('Share failed', err);
+    }
+  };
+
   if (loading) {
     return (
       <div className="loading">
@@ -160,6 +269,16 @@ const Dashboard = () => {
               Keep your reading record complete by adding every finished book
               with its title, author, and language.
             </p>
+            <div className="hero-action-buttons">
+              <button className="btn btn-primary btn-hero" onClick={handleEditPledge}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '8px'}}><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path></svg>
+                Edit Pledge
+              </button>
+              <button className="btn btn-outline btn-hero" onClick={handleSharePledge}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '8px'}}><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
+                Share Pledge
+              </button>
+            </div>
           </div>
           <div className="hero-illustration">
             <img src="/images/books.png" alt="Reading Illustration" />
@@ -211,7 +330,7 @@ const Dashboard = () => {
             </div>
             <h3>Record a Book</h3>
 
-            <form onSubmit={handleSubmitBook}>
+            <form id="record-book-form" onSubmit={handleSubmitBook}>
               {error && <div className="error">{error}</div>}
               {success && <div className="success">{success}</div>}
 
@@ -330,6 +449,55 @@ const Dashboard = () => {
             </a>
           </section>
         </section>
+
+        {showFrame && (
+          <div className="modal-overlay" onClick={closeFrameModal}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <button className="close-modal" onClick={closeFrameModal}>
+                ×
+              </button>
+              <div className="modal-header">
+                <p className="badge-small" style={{ marginBottom: '12px' }}>
+                  {frameMode === 'edit' ? 'Edit Pledge' : 'Share Pledge'}
+                </p>
+                
+              </div>
+
+              {frameMode === 'edit' && (
+                <div className="photo-frame-edit">
+                  <div className="frame-edit-grid">
+                    <label className="file-input-wrapper">
+                      <span>Upload Photo</span>
+                      <input type="file" accept="image/*" onChange={handlePhotoUpload} />
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              <PhotoFrame
+                photo={framePhoto}
+                userName={frameName || `${user.firstName} ${user.lastName}`}
+                location={frameLocation || `${user.location} • ${user.region}`}
+              />
+
+              <div className="share-actions">
+                {frameMode === 'edit' ? (
+                  <button className="btn btn-primary" onClick={closeFrameModal}>
+                    Save Pledge Frame
+                  </button>
+                ) : null}
+                {navigator.share ? (
+                  <button className="btn btn-outline" onClick={handleShareWeb}>
+                    Share via Device
+                  </button>
+                ) : null}
+                <button className="btn btn-outline" onClick={handleCopyShareLink}>
+                  Copy Share Link
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
