@@ -1,25 +1,6 @@
 const { Sequelize } = require('sequelize');
 require('dotenv').config();
 
-// const sequelize = new Sequelize(
-//   process.env.DB_NAME || 'gift-of-reading',
-//   process.env.DB_USER || 'postgres',
-//   process.env.DB_PASSWORD || 'postgres',
-//   {
-//     host: process.env.DB_HOST || 'localhost',
-//     port: process.env.DB_PORT || 5433,
-//     dialect: 'postgres',
-//     logging: process.env.NODE_ENV === 'development' ? console.log : false,
-//     pool: {
-//       max: 5,
-//       min: 0,
-//       acquire: 30000,
-//       idle: 10000
-//     }
-//   }
-// );
-// for live server just uncomment the below code and comment the above code
-
 const sequelize = new Sequelize(
   process.env.DB_NAME || 'giftofreading',
   process.env.DB_USER || 'postgres',
@@ -37,9 +18,6 @@ const sequelize = new Sequelize(
     }
   }
 );
-
-
-
 
 const connectDB = async () => {
   try {
